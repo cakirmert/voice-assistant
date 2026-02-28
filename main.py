@@ -42,7 +42,7 @@ class VoiceAssistant:
         print("=" * 60)
         for i in range(torch.cuda.device_count()):
             name = torch.cuda.get_device_name(i)
-            mem = torch.cuda.get_device_properties(i).total_mem / (1024**3)
+            mem = torch.cuda.get_device_properties(i).total_memory / (1024**3)
             print(f"  GPU {i}: {name} ({mem:.1f} GB)")
         print()
 
@@ -71,7 +71,7 @@ class VoiceAssistant:
         print("VRAM USAGE:")
         for i in range(torch.cuda.device_count()):
             alloc = torch.cuda.memory_allocated(i) / (1024**3)
-            total = torch.cuda.get_device_properties(i).total_mem / (1024**3)
+            total = torch.cuda.get_device_properties(i).total_memory / (1024**3)
             print(f"  GPU {i} ({torch.cuda.get_device_name(i)}): "
                   f"{alloc:.2f} GB / {total:.1f} GB ({alloc/total*100:.0f}%)")
         print("=" * 60)
