@@ -7,7 +7,7 @@ echo "=== Phi-4 FP8 Server Setup (WSL2) ==="
 
 # 1. Create virtualenv
 echo "[1/5] Creating Python venv..."
-python3.10 -m venv venv || python3 -m venv venv
+python3.12 -m venv venv || python3.10 -m venv venv || python3 -m venv venv
 source venv/bin/activate
 
 # 2. Install PyTorch with CUDA

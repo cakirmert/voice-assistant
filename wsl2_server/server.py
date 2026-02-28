@@ -59,10 +59,62 @@ class InferenceResponse(BaseModel):
 app = FastAPI(title="Phi-4 Inference Server", version="1.0.0")
 
 
+def _apply_phi4_patches():
+    """Apply compatibility patches for Phi-4 + newer transformers."""
+    import glob, sys
+
+    # Patch 1: DynamicCache.get_usable_length → get_seq_length
+    try:
+        from transformers.cache_utils import DynamicCache
+        if not hasattr(DynamicCache, "get_usable_length") and hasattr(DynamicCache, "get_seq_length"):
+            def _get_usable_length(self, kv_seq_len, layer_idx=0):
+                return self.get_seq_length(layer_idx)
+            DynamicCache.get_usable_length = _get_usable_length
+            logger.info("Patched DynamicCache.get_usable_length")
+    except Exception as e:
+        logger.warning(f"DynamicCache patch skipped: {e}")
+
+    # Patch 2: peft prepare_inputs_for_generation
+    try:
+        import peft.peft_model
+        _orig_init = peft.peft_model.PeftModelForCausalLM.__init__
+        def _patched_init(self, model, peft_config, adapter_name="default", **kwargs):
+            if not hasattr(model, "prepare_inputs_for_generation"):
+                model.prepare_inputs_for_generation = lambda *a, **kw: kw
+            _orig_init(self, model, peft_config, adapter_name=adapter_name, **kwargs)
+        peft.peft_model.PeftModelForCausalLM.__init__ = _patched_init
+        logger.info("Patched PeftModelForCausalLM.__init__")
+    except Exception as e:
+        logger.warning(f"PeftModel patch skipped: {e}")
+
+    # Patch 3: num_logits_to_keep None fix
+    try:
+        model_files = glob.glob(
+            "/root/.cache/huggingface/modules/transformers_modules/microsoft/*/modeling_phi4mm.py"
+        ) + glob.glob(
+            str(__import__("pathlib").Path.home() / ".cache/huggingface/modules/transformers_modules/microsoft/*/modeling_phi4mm.py")
+        )
+        for mf in set(model_files):
+            with open(mf, "r") as f:
+                content = f.read()
+            old = "hidden_states[:, -num_logits_to_keep:, :]"
+            new = "hidden_states[:, -num_logits_to_keep:, :] if num_logits_to_keep else hidden_states"
+            if old in content and new not in content:
+                content = content.replace(old, new)
+                with open(mf, "w") as f:
+                    f.write(content)
+                logger.info(f"Patched num_logits_to_keep in {mf}")
+    except Exception as e:
+        logger.warning(f"num_logits_to_keep patch skipped: {e}")
+
+
 @app.on_event("startup")
 def load_model():
     """Load Phi-4 model on startup. Tries TRT-LLM first, falls back to Transformers."""
     global model, processor, gen_config, backend
+
+    # Apply compatibility patches for newer transformers versions
+    _apply_phi4_patches()
 
     # Try TensorRT-LLM first
     try:
