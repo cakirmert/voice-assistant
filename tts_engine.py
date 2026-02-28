@@ -216,6 +216,7 @@ class TTSEngine:
     def _play_audio(self, audio_np: np.ndarray, sample_rate: int):
         """Play numpy audio through speakers via PyAudio."""
         if audio_np.dtype in (np.float32, np.float64):
+            audio_np = np.nan_to_num(audio_np, nan=0.0)
             audio_np = np.clip(audio_np, -1.0, 1.0)
             audio_int16 = (audio_np * 32767).astype(np.int16)
         else:

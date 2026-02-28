@@ -49,6 +49,64 @@ class Phi4Brain:
         print("[Phi4Brain] Falling back to local model loading...")
         self._load_local_model()
 
+    @staticmethod
+    def _patch_phi4_peft_compat():
+        """Patch Phi-4 multimodal model for peft + transformers 4.50+ compatibility."""
+        import importlib
+        import sys
+
+        # Patch 1: DynamicCache.get_usable_length was renamed to get_seq_length
+        # in newer transformers. The old signature: get_usable_length(kv_seq_len, layer_idx)
+        # The new signature: get_seq_length(layer_idx). We need a wrapper.
+        try:
+            from transformers.cache_utils import DynamicCache
+            if not hasattr(DynamicCache, "get_usable_length") and hasattr(DynamicCache, "get_seq_length"):
+                def _get_usable_length(self, kv_seq_len, layer_idx=0):
+                    return self.get_seq_length(layer_idx)
+                DynamicCache.get_usable_length = _get_usable_length
+                print("[Phi4Brain] Patched DynamicCache.get_usable_length")
+        except Exception as e:
+            print(f"[Phi4Brain] DynamicCache patch skipped: {e}")
+
+        # Patch 2: peft's PeftModelForCausalLM expects prepare_inputs_for_generation
+        # but transformers 4.50+ removed GenerationMixin from PreTrainedModel.
+        try:
+            import peft.peft_model
+            _orig_init = peft.peft_model.PeftModelForCausalLM.__init__
+
+            def _patched_init(self, model, peft_config, adapter_name="default", **kwargs):
+                if not hasattr(model, "prepare_inputs_for_generation"):
+                    def _dummy(self_inner, *a, **kw):
+                        return kw
+                    model.prepare_inputs_for_generation = _dummy.__get__(model, type(model))
+                _orig_init(self, model, peft_config, adapter_name=adapter_name, **kwargs)
+
+            peft.peft_model.PeftModelForCausalLM.__init__ = _patched_init
+            print("[Phi4Brain] Patched PeftModelForCausalLM.__init__")
+        except Exception as e:
+            print(f"[Phi4Brain] PeftModel patch skipped: {e}")
+
+        # Patch 3: Phi-4's model code uses `num_logits_to_keep` which is None in
+        # newer transformers (was 0). Patch the cached model file directly.
+        try:
+            import glob
+            model_files = glob.glob(
+                r"C:\Users\*\.cache\huggingface\modules\transformers_modules"
+                r"\microsoft\*multimodal*\*\modeling_phi4mm.py"
+            )
+            for mf in model_files:
+                with open(mf, "r", encoding="utf-8") as f:
+                    content = f.read()
+                old = "hidden_states[:, -num_logits_to_keep:, :]"
+                new = "hidden_states[:, -num_logits_to_keep:, :] if num_logits_to_keep else hidden_states"
+                if old in content and new not in content:
+                    content = content.replace(old, new)
+                    with open(mf, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    print(f"[Phi4Brain] Patched num_logits_to_keep in {mf}")
+        except Exception as e:
+            print(f"[Phi4Brain] num_logits_to_keep patch skipped: {e}")
+
     def _load_local_model(self):
         """Load Phi-4 locally as fallback."""
         import torch
@@ -58,6 +116,11 @@ class Phi4Brain:
         self.local_processor = AutoProcessor.from_pretrained(
             config.PHI4_MODEL_ID, trust_remote_code=True,
         )
+
+        # Monkey-patch: Phi-4 multimodal + peft + transformers 4.50+ compatibility
+        # The model's init calls get_peft_model(), which expects prepare_inputs_for_generation
+        # but transformers 4.50+ removed GenerationMixin from PreTrainedModel.
+        self._patch_phi4_peft_compat()
 
         attn_impl = config.PHI4_ATTN_IMPL
         try:
