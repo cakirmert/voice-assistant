@@ -1,0 +1,44 @@
+# Virtual environment
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# VibeVoice cloned repo (large, install from source)
+VibeVoice/
+
+# Model caches (downloaded at runtime)
+*.pt
+*.bin
+*.safetensors
+*.onnx
+*.gguf
+
+# Audio test files
+*.wav
+*.mp3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# WSL2 server venv (created separately in WSL2)
+wsl2_server/venv/
+
+# Misc
+*.log
+tmp/

@@ -1,0 +1,19 @@
+# Voice Assistant Dependencies
+# Install PyTorch first: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
+
+# Core ML
+transformers>=4.48.2
+accelerate
+peft
+soundfile
+scipy
+pillow
+numpy
+
+# Audio
+pyaudio
+openwakeword
+
+# System
+psutil
+backoff
