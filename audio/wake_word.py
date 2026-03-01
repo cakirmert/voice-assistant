@@ -7,6 +7,10 @@ import pyaudio
 import threading
 import time
 from openwakeword.model import Model as OWWModel
+import sys
+import os
+# Add parent to path for config
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 
 

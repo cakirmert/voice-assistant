@@ -7,12 +7,13 @@ import torch
 PRIMARY_GPU = "cuda:0"      # RTX 5060 Ti 16GB — Phi-4 multimodal
 SECONDARY_GPU = "cuda:1"    # GTX 1660 Super 6GB — VibeVoice TTS
 
-# ─── Phi-4 Multimodal (STT + LLM Brain) ─────────────────────────────
-PHI4_MODEL_ID = "microsoft/Phi-4-multimodal-instruct"
-PHI4_TORCH_DTYPE = torch.bfloat16
-PHI4_ATTN_IMPL = "flash_attention_2"   # fallback: "eager"
-PHI4_MAX_NEW_TOKENS = 512
-PHI4_SERVER_URL = "http://localhost:8401"  # WSL2 inference server
+# ─── LLM Brain (GGUF) ─────────────────────────────
+LLM_MODEL_PATH = "models/Llama-3.2-3B-Instruct-Q4_K_M.gguf"
+LLM_MAX_NEW_TOKENS = 256
+LOCAL_SERVER_URL = "http://localhost:8401"  # Native Windows inference server
+
+# ─── STT Engine (Faster Whisper) ─────────────────────────
+STT_MODEL_SIZE = "small.en"
 
 # ─── TTS Engine ─────────────────────────────────────────────────────
 TTS_BACKEND = "qwen3"       # "qwen3" or "vibevoice"

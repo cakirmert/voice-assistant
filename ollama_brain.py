@@ -1,19 +1,11 @@
-import base64
-import io
-import json
-import logging
-import requests
-import soundfile as sf
-import numpy as np
-
 import config
 from tool_registry import ToolRegistry
+from audio.stt_engine import STTEngine
 
 logger = logging.getLogger("ollama_brain")
 
 OLLAMA_API_URL = "http://localhost:11434/v1/chat/completions"
 OLLAMA_MODEL = "gpt-oss:20b"
-WSL_STT_ENDPOINT = "http://127.0.0.1:8402/stt"
 
 class OllamaBrain:
     """
@@ -23,6 +15,7 @@ class OllamaBrain:
 
     def __init__(self, tool_registry: ToolRegistry):
         self.tool_registry = tool_registry
+        self.stt_engine = STTEngine()
         
         # Check if Ollama is running
         try:
@@ -33,35 +26,13 @@ class OllamaBrain:
             print("[OllamaBrain] WARNING: Could not connect to Ollama at localhost:11434")
 
     def process_audio(self, audio_data: np.ndarray, sample_rate: int) -> str:
-        """Route to WSL2 server for STT, then infer with Ollama."""
-        text = self._stt(audio_data, sample_rate)
+        """Transcribe and then infer with Ollama."""
+        text = self.stt_engine.transcribe(audio_data)
         if not text:
             return "Sorry, I couldn't hear that properly."
 
         print(f"[OllamaBrain] STT Text: {text}")
         return self.process_text(text)
-
-    def _stt(self, audio_data: np.ndarray, sample_rate: int) -> str:
-        if audio_data.dtype == np.int16:
-            audio_float = audio_data.astype(np.float64) / 32768.0
-        else:
-            audio_float = audio_data.astype(np.float64)
-
-        wav_buffer = io.BytesIO()
-        sf.write(wav_buffer, audio_float, sample_rate, format="WAV")
-        wav_bytes = wav_buffer.getvalue()
-        audio_b64 = base64.b64encode(wav_bytes).decode("ascii")
-
-        try:
-            r = requests.post(WSL_STT_ENDPOINT, json={"audio_b64": audio_b64}, timeout=30)
-            if r.status_code == 200:
-                return r.json().get("text", "").strip()
-            else:
-                logger.error(f"[OllamaBrain] STT failed with {r.status_code}: {r.text}")
-                return ""
-        except Exception as e:
-            logger.error(f"[OllamaBrain] STT request failed: {e}")
-            return ""
 
     def process_text(self, text: str) -> str:
         """Run text through Ollama, handling multiple turns if tools are called."""

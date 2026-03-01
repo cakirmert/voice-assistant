@@ -16,10 +16,13 @@ from enum import Enum, auto
 import config
 from tool_registry import ToolRegistry
 from tools.system_commands import register_system_tools
-from wake_word import WakeWordDetector
-from audio_capture import AudioCapture
+from tools.media_tools import register_media_tools
+from tools.smart_home import register_smart_home_tools
+
+from audio.wake_word import WakeWordDetector
+from audio.audio_capture import AudioCapture
 from ollama_brain import OllamaBrain
-from tts_engine import TTSEngine
+from audio.tts_engine import TTSEngine
 
 
 class State(Enum):
@@ -50,6 +53,8 @@ class VoiceAssistant:
         print("[Init] Setting up tool registry...")
         self.tool_registry = ToolRegistry()
         register_system_tools(self.tool_registry)
+        register_media_tools(self.tool_registry)
+        register_smart_home_tools(self.tool_registry)
         print(f"[Init] Registered {len(self.tool_registry.tools)} tools: {list(self.tool_registry.tools.keys())}")
 
         # Load models

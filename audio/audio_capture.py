@@ -5,6 +5,10 @@ import numpy as np
 import pyaudio
 import torch
 import time
+import sys
+import os
+# Add parent to path for config
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 
 

@@ -9,6 +9,10 @@ import numpy as np
 import torch
 import pyaudio
 import soundfile as sf
+import sys
+import os
+# Add parent to path for config
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 
 
@@ -66,7 +70,7 @@ class TTSEngine:
         print(f"[TTS] Qwen3-TTS loaded. VRAM: {allocated:.2f} GB (attn: {attn})")
         print(f"[TTS] Speaker: {config.QWEN3_TTS_SPEAKER}, Language: {config.QWEN3_TTS_LANGUAGE}")
 
-    def _speak_qwen3(self, text: str):
+    def _speak_qwen3(self, text: str, play_audio: bool = True):
         """Generate and play speech using Qwen3-TTS."""
         wavs, sr = self._model.generate_custom_voice(
             text=text,
@@ -74,11 +78,14 @@ class TTSEngine:
             speaker=config.QWEN3_TTS_SPEAKER,
         )
         if wavs and len(wavs) > 0:
-            self._play_audio(wavs[0], sr)
+            if play_audio:
+                self._play_audio(wavs[0], sr)
             duration = len(wavs[0]) / sr
             print(f"[TTS] Finished speaking ({duration:.1f}s)")
+            return wavs[0], sr
         else:
             print("[TTS] No audio output generated")
+            return None, None
 
     # ─── VibeVoice ───────────────────────────────────────────────────
 
@@ -151,7 +158,7 @@ class TTSEngine:
         else:
             self._voice_cache = None
 
-    def _speak_vibevoice(self, text: str):
+    def _speak_vibevoice(self, text: str, play_audio: bool = True):
         """Generate and play speech using VibeVoice."""
         if self._voice_cache is not None:
             inputs = self._processor.process_input_with_cached_prompt(
@@ -187,31 +194,37 @@ class TTSEngine:
             audio_np = audio.cpu().numpy() if isinstance(audio, torch.Tensor) else np.array(audio)
             if audio_np.ndim > 1:
                 audio_np = audio_np.squeeze()
-            self._play_audio(audio_np, self._sample_rate)
+            if play_audio:
+                self._play_audio(audio_np, self._sample_rate)
             duration = len(audio_np) / self._sample_rate
             print(f"[TTS] Finished speaking ({duration:.1f}s)")
+            return audio_np, self._sample_rate
         else:
             print("[TTS] No audio output generated")
+            return None, None
 
     # ─── Common ──────────────────────────────────────────────────────
 
-    def speak(self, text: str):
-        """Convert text to speech and play through speakers."""
+    def speak(self, text: str, play_audio: bool = True):
+        """Convert text to speech and conditionally play through speakers.
+        Returns (audio_np, sample_rate) if generated.
+        """
         if not text or not text.strip():
-            return
+            return None, None
 
         text = text.strip()
         print(f"[TTS] Speaking ({self.backend}): {text[:100]}...")
 
         try:
             if self.backend == "qwen3":
-                self._speak_qwen3(text)
+                return self._speak_qwen3(text, play_audio=play_audio)
             else:
-                self._speak_vibevoice(text)
+                return self._speak_vibevoice(text, play_audio=play_audio)
         except Exception as e:
             print(f"[TTS] Error: {e}")
             import traceback
             traceback.print_exc()
+            return None, None
 
     def _play_audio(self, audio_np: np.ndarray, sample_rate: int):
         """Play numpy audio through speakers via PyAudio."""
