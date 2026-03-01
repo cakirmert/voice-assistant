@@ -73,6 +73,31 @@ def open_application(name: str) -> str:
         return f"Error opening {name}: {e}"
 
 
+def control_volume(action: str) -> str:
+    """Control system volume (up, down, mute) using Windows API keys via PowerShell."""
+    try:
+        action_lower = action.lower()
+        if action_lower == "mute":
+            # 173 = APPCOMMAND_VOLUME_MUTE
+            cmd = "$obj = new-object -com wscript.shell; $obj.SendKeys([char]173)"
+            subprocess.run(["powershell", "-Command", cmd], capture_output=True)
+            return "Toggled volume mute."
+        elif action_lower == "down":
+            # 174 = APPCOMMAND_VOLUME_DOWN
+            cmd = "$obj = new-object -com wscript.shell; for($i=0; $i -lt 5; $i++){$obj.SendKeys([char]174)}"
+            subprocess.run(["powershell", "-Command", cmd], capture_output=True)
+            return "Turned volume down."
+        elif action_lower == "up":
+            # 175 = APPCOMMAND_VOLUME_UP
+            cmd = "$obj = new-object -com wscript.shell; for($i=0; $i -lt 5; $i++){$obj.SendKeys([char]175)}"
+            subprocess.run(["powershell", "-Command", cmd], capture_output=True)
+            return "Turned volume up."
+        else:
+            return f"Invalid volume action: {action}. Use 'up', 'down', or 'mute'."
+    except Exception as e:
+        return f"Error controlling volume: {e}"
+
+
 def register_system_tools(registry):
     """Register all system tools with the tool registry."""
     registry.register(
@@ -112,29 +137,6 @@ def register_system_tools(registry):
         },
         handler=open_application,
     )
-
-def control_volume(action: str) -> str:
-    """Control system volume (up, down, mute) using Windows API keys via PowerShell."""
-    try:
-        if action.lower() == "mute":
-            # 173 = APPCOMMAND_VOLUME_MUTE
-            cmd = "$obj = new-object -com wscript.shell; $obj.SendKeys([char]173)"
-            subprocess.run(["powershell", "-Command", cmd], capture_output=True)
-            return "Toggled volume mute."
-        elif action.lower() == "down":
-            # 174 = APPCOMMAND_VOLUME_DOWN
-            cmd = "$obj = new-object -com wscript.shell; for($i=0; $i -lt 5; $i++){$obj.SendKeys([char]174)}"
-            subprocess.run(["powershell", "-Command", cmd], capture_output=True)
-            return "Turned volume down."
-        elif action.lower() == "up":
-            # 175 = APPCOMMAND_VOLUME_UP
-            cmd = "$obj = new-object -com wscript.shell; for($i=0; $i -lt 5; $i++){$obj.SendKeys([char]175)}"
-            subprocess.run(["powershell", "-Command", cmd], capture_output=True)
-            return "Turned volume up."
-        else:
-            return f"Invalid volume action: {action}. Use 'up', 'down', or 'mute'."
-    except Exception as e:
-        return f"Error controlling volume: {e}"
 
     registry.register(
         name="control_volume",

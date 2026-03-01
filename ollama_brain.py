@@ -1,3 +1,6 @@
+import logging
+import requests
+import numpy as np
 import config
 from tool_registry import ToolRegistry
 from audio.stt_engine import STTEngine
