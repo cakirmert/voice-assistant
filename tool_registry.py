@@ -16,12 +16,31 @@ class Tool:
         self.parameters = parameters
         self.handler = handler
 
-    def to_dict(self) -> dict:
-        """Convert to Phi-4 tool definition format."""
+    def to_openai_dict(self) -> dict:
+        """Convert to OpenAI standard tool definition format."""
+        
+        # Ensure parameters has valid structure for OpenAI
+        properties = {}
+        required = []
+        for param_name, param_details in self.parameters.items():
+            properties[param_name] = {
+                "type": param_details.get("type", "string"),
+                "description": param_details.get("description", "")
+            }
+            # As a simple heuristic, we mark all parameters as required
+            required.append(param_name)
+
         return {
-            "name": self.name,
-            "description": self.description,
-            "parameters": self.parameters,
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required
+                }
+            }
         }
 
     def execute(self, **kwargs) -> str:
@@ -43,26 +62,39 @@ class ToolRegistry:
         """Register a new tool."""
         self.tools[name] = Tool(name, description, parameters, handler)
 
-    def get_tool_definitions_json(self) -> str:
-        """Generate JSON string of all tool definitions for Phi-4's <|tool|> tag."""
-        return json.dumps([tool.to_dict() for tool in self.tools.values()])
+    def get_openai_tools_list(self) -> list[dict]:
+        """Generate list of all tool definitions in standard OpenAI format."""
+        return [tool.to_openai_dict() for tool in self.tools.values()]
 
     def execute_tool_call(self, tool_call_str: str) -> str:
         """
-        Parse and execute a tool call from Phi-4's output.
-        Expected format: {"name": "tool_name", "arguments": {"param": "value"}}
+        Parse and execute a tool call from JSON string.
         """
         try:
             call = json.loads(tool_call_str)
+            return self.execute_parsed_tool_call(call)
+        except json.JSONDecodeError:
+            return f"Failed to parse tool call: {tool_call_str}"
+        except Exception as e:
+            return f"Tool execution error: {e}\n{traceback.format_exc()}"
+
+    def execute_parsed_tool_call(self, call: dict) -> str:
+        """Execute a tool call that is already parsed into a dictionary."""
+        try:
             tool_name = call.get("name", "")
             arguments = call.get("arguments", {})
+
+            # Sometimes tools like OpenAI return arguments as a JSON string
+            if isinstance(arguments, str):
+                try:
+                    arguments = json.loads(arguments)
+                except json.JSONDecodeError:
+                    return f"Failed to parse tool arguments JSON: {arguments}"
 
             if tool_name not in self.tools:
                 return f"Unknown tool: {tool_name}. Available: {list(self.tools.keys())}"
 
             return self.tools[tool_name].execute(**arguments)
-        except json.JSONDecodeError:
-            return f"Failed to parse tool call: {tool_call_str}"
         except Exception as e:
             return f"Tool execution error: {e}\n{traceback.format_exc()}"
 

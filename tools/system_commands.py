@@ -64,6 +64,7 @@ def open_application(name: str) -> str:
             "edge": "start msedge",
             "chrome": "start chrome",
             "firefox": "start firefox",
+            "spotify": "start spotify",
         }
         cmd = app_map.get(name.lower(), f"start {name}")
         subprocess.Popen(cmd, shell=True)
@@ -102,7 +103,7 @@ def register_system_tools(registry):
 
     registry.register(
         name="open_application",
-        description="Open an application by name (e.g., notepad, calculator, browser, terminal).",
+        description="Open an application by name (e.g., notepad, calculator, browser, terminal, spotify).",
         parameters={
             "name": {
                 "description": "Name of the application to open",
@@ -110,4 +111,39 @@ def register_system_tools(registry):
             }
         },
         handler=open_application,
+    )
+
+def control_volume(action: str) -> str:
+    """Control system volume (up, down, mute) using Windows API keys via PowerShell."""
+    try:
+        if action.lower() == "mute":
+            # 173 = APPCOMMAND_VOLUME_MUTE
+            cmd = "$obj = new-object -com wscript.shell; $obj.SendKeys([char]173)"
+            subprocess.run(["powershell", "-Command", cmd], capture_output=True)
+            return "Toggled volume mute."
+        elif action.lower() == "down":
+            # 174 = APPCOMMAND_VOLUME_DOWN
+            cmd = "$obj = new-object -com wscript.shell; for($i=0; $i -lt 5; $i++){$obj.SendKeys([char]174)}"
+            subprocess.run(["powershell", "-Command", cmd], capture_output=True)
+            return "Turned volume down."
+        elif action.lower() == "up":
+            # 175 = APPCOMMAND_VOLUME_UP
+            cmd = "$obj = new-object -com wscript.shell; for($i=0; $i -lt 5; $i++){$obj.SendKeys([char]175)}"
+            subprocess.run(["powershell", "-Command", cmd], capture_output=True)
+            return "Turned volume up."
+        else:
+            return f"Invalid volume action: {action}. Use 'up', 'down', or 'mute'."
+    except Exception as e:
+        return f"Error controlling volume: {e}"
+
+    registry.register(
+        name="control_volume",
+        description="Control the system audio volume. Actions allowed: 'up', 'down', 'mute'.",
+        parameters={
+            "action": {
+                "description": "The volume action to perform: 'up', 'down', or 'mute'",
+                "type": "str",
+            }
+        },
+        handler=control_volume,
     )

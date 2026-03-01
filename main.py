@@ -18,7 +18,7 @@ from tool_registry import ToolRegistry
 from tools.system_commands import register_system_tools
 from wake_word import WakeWordDetector
 from audio_capture import AudioCapture
-from phi4_brain import Phi4Brain
+from ollama_brain import OllamaBrain
 from tts_engine import TTSEngine
 
 
@@ -53,8 +53,8 @@ class VoiceAssistant:
         print(f"[Init] Registered {len(self.tool_registry.tools)} tools: {list(self.tool_registry.tools.keys())}")
 
         # Load models
-        print("\n[Init] Loading Phi-4 Brain (STT + LLM)...")
-        self.brain = Phi4Brain(self.tool_registry)
+        print("\n[Init] Loading Ollama Brain (STT + LLM)...")
+        self.brain = OllamaBrain(self.tool_registry)
 
         print("\n[Init] Loading VibeVoice TTS...")
         self.tts = TTSEngine()
@@ -105,7 +105,7 @@ class VoiceAssistant:
 
                 audio_data, sample_rate = result
 
-                # ─── THINKING: Process with Phi-4 ───
+                # ─── THINKING: Process with Ollama ───
                 self.state = State.THINKING
                 print(">>> Thinking...")
                 try:
